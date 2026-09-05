@@ -17,11 +17,14 @@ Synthesizable, modular, and parameterizable serial communication IP cores implem
 
 The loopback architecture connects `tx_pin` directly to `rx_pin`. Transmission of byte `0xA5` (binary: `10100101`) verified in AMD Xilinx Vivado ML.
 
-![UART Loopback Waveform](docs/uart_loopback_waveform.png)
+![UART Loopback Waveform](UART/uart_loopback_waveform.png)
 
 ---
 
 ## 📂 Repository Structure
 
-- `rtl/` : Synthesizable Verilog modules (`uart_tx.v`, `uart_rx.v`).
-- `tb/`  : Self-checking testbench environments (`uart_loopback_tb.v`).
+## 📂 Repository Structure
+
+- `UART/` : Core Verilog implementation and testbench (`uart_tx.v`, `uart_rx.v`, `uart_loopback_tb.v`).
+- `/rtl/` : Synthesizable Verilog modules (`uart_tx.v`, `uart_rx.v`).
+- `/tb/`  : Self-checking testbench environments (`uart_loopback_tb.v`).
