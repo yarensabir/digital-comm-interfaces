@@ -23,8 +23,6 @@ The loopback architecture connects `tx_pin` directly to `rx_pin`. Transmission o
 
 ## 📂 Repository Structure
 
-## 📂 Repository Structure
-
 - `UART/` : Core Verilog implementation and testbench (`uart_tx.v`, `uart_rx.v`, `uart_loopback_tb.v`).
 - `/rtl/` : Synthesizable Verilog modules (`uart_tx.v`, `uart_rx.v`).
 - `/tb/`  : Self-checking testbench environments (`uart_loopback_tb.v`).
