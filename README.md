@@ -37,6 +37,4 @@ The SPI Master module is verified via a full-duplex exchange against an emulated
 
 * **`uart/`**: Core Verilog implementation and testbench (`uart_tx.v`, `uart_rx.v`, `uart_loopback_tb.v`).
 * **`spi/`**: Core Verilog implementation and testbench (`spi_master.v`, `spi_master_tb.v`).
-* **`/rtl/`**: Synthesizable Verilog modules.
-* **`/tb/`**: Self-checking testbench environments.
-* **`/docs/`**: Simulation waveforms and architecture schematics.
+
