@@ -57,6 +57,20 @@ Verified behavioral simulation targeting an emulated slave at address `7'h50` re
 
 ---
 
+## 📊 FPGA Resource Utilization (AMD Xilinx Artix-7)
+
+Synthesized with AMD Xilinx Vivado ML (v2024.2) targeting the **XC7A35T-FTG256-1** FPGA:
+
+| Resource Type | Used | Total Available | Utilization (%) | Primary Primitive Breakdown |
+| :--- | :---: | :---: | :---: | :--- |
+| **Slice LUTs** | **55** | 20,800 | 0.26% | 26 LUT6, 17 LUT3, 15 LUT5, 13 LUT4 |
+| **Slice Registers (FF)** | **45** | 41,600 | 0.11% | 40 FDCE (Async Reset), 5 FDPE (Async Set) |
+| **Block RAM (BRAM)** | **0** | 50 | 0.00% | Pure distributed logic |
+| **DSP Blocks** | **0** | 90 | 0.00% | No hardware multipliers instantiated |
+| **Tristate Buffers (OBUFT)** | **1** | - | - | Dedicated I/O tristate buffer for bidirectional `sda` |
+
+---
+
 ## 📁 Repository Structure
 
 * **`UART/`**: Core Verilog implementation and testbench (`uart_tx.v`, `uart_rx.v`, `tb_uart_tx.v`, `uart_loopback_tb.v`).
