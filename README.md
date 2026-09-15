@@ -59,17 +59,29 @@ Verified behavioral simulation targeting an emulated slave at address `7'h50` re
 
 ## 📊 FPGA Resource Utilization (AMD Xilinx Artix-7)
 
-Synthesized with AMD Xilinx Vivado ML (v2024.2) targeting the **XC7A35T-FTG256-1** FPGA:
+Target Device: **XC7A35T-FTG256-1** (Synthesized via Vivado v2024.2)
+
+### 1. I2C Master Core (`i2c_master_rw`)
+*Standalone bidirectional I2C controller implementation.*
 
 | Resource Type | Used | Total Available | Utilization (%) | Primary Primitive Breakdown |
 | :--- | :---: | :---: | :---: | :--- |
 | **Slice LUTs** | **55** | 20,800 | 0.26% | 26 LUT6, 17 LUT3, 15 LUT5, 13 LUT4 |
-| **Slice Registers (FF)** | **45** | 41,600 | 0.11% | 40 FDCE (Async Reset), 5 FDPE (Async Set) |
-| **Block RAM (BRAM)** | **0** | 50 | 0.00% | Pure distributed logic |
-| **DSP Blocks** | **0** | 90 | 0.00% | No hardware multipliers instantiated |
+| **Slice Registers (FF)** | **45** | 41,600 | 0.11% | 40 FDCE, 5 FDPE |
 | **Tristate Buffers (OBUFT)** | **1** | - | - | Dedicated I/O tristate buffer for bidirectional `sda` |
+| **BRAM / DSP** | **0** | - | 0.00% | Pure distributed logic |
 
 ---
+
+### 2. UART APB3 Peripheral (`apb_uart_slave`)
+*Fully integrated UART TX/RX core wrapped with AMBA APB3 bus slave interface.*
+
+| Resource Type | Used | Total Available | Utilization (%) | Primary Primitive Breakdown |
+| :--- | :---: | :---: | :---: | :--- |
+| **Slice LUTs** | **58** | 20,800 | 0.28% | 29 LUT6, 22 LUT5, 4 LUT4, 4 LUT3, 3 LUT2, 1 LUT1 |
+| **Slice Registers (FF)** | **53** | 41,600 | 0.13% | 51 FDCE, 2 FDPE |
+| **Arithmetic Carry (CARRY4)** | **4** | 8,150 | 0.05% | Hardware adders for baud rate dividers |
+| **BRAM / DSP** | **0** | - | 0.00% | Pure distributed logic |
 
 ## 📁 Repository Structure
 
