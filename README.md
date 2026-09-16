@@ -1,90 +1,74 @@
-# Digital Communication Interfaces (RTL)
+# 🚀 AMBA APB3 Communication IP Core Library
 
-Synthesizable, modular, and parameterizable serial communication IP cores implemented in Verilog (IEEE 1364-2001) for FPGA and ASIC architectures.
-
-## 📌 Features
-
-### UART Core (`uart_tx.v` & `uart_rx.v`)
-* **Frame Format**: 8-N-1 (1 Start bit, 8 Data bits, No parity, 1 Stop bit).
-* **Timing**: Configurable clock-per-bit counter (default: 100 MHz clock, 9600 baud -> 10,400 clocks/bit).
-* **Transmitter (TX)**: FSM-driven serializer with deterministic transmission intervals.
-* **Receiver (RX)**: Mid-bit oversampling strategy with false-start glitch rejection.
-* **Verification**: Self-checking loopback testbench verifying full TX-to-RX transmission.
-
-### SPI Master Core (`spi_master.v`)
-* **Protocol Mode**: SPI Mode 0 (CPOL = 0, CPHA = 0).
-* **Frame Format**: 8-bit full-duplex data exchange, MSB-first.
-* **Timing**: Parameterized clock divider (`CLK_DIV`) generating SCK from system clock.
-* **Control**: Single-cycle start trigger, active-low Chip Select (`cs`), and `done_tick` completion flag.
-* **Verification**: Self-checking testbench simulating a virtual SPI slave device.
-
-### I2C Master Core (`i2c_master_full.v`)
-* **Physical Layer**: Tristate/open-drain bus control (`1'bz` release / `1'b0` drive) with external/internal pull-up architecture.
-* **Timing Generator**: 4-phase micro-state machine per SCL cycle ensuring data setup and hold compliance.
-* **Transactions Supported**:
-  * Single-byte Write (Device Addressing, ACK checking, Data Write, ACK checking, STOP).
-  * Single-byte Read (Device Addressing, ACK checking, Data Sampling, Master NACK, STOP).
-* **Robust Error Handling**: Dynamic `ack_error` flag asserted upon missing slave acknowledgment.
-* **Verification**: Self-checking testbench interacting with an emulated responsive I2C slave peripheral.
+A lightweight, modular, and parameterized hardware communication IP suite developed in Verilog HDL. This library provides standardized peripheral controllers interfaced via the **AMBA 3 APB (Advanced Peripheral Bus)** protocol, designed specifically for seamless integration into embedded SoC and RISC-V architectures.
 
 ---
 
-## 🔬 Simulation & Verification
+## 📌 Architecture Overview
 
-### UART Loopback Verification
-The loopback architecture connects `tx_pin` directly to `rx_pin`. Transmission of byte `0xA5` (binary: `10100101`) verified in AMD Xilinx Vivado ML.
-
-### SPI Master Verification
-The SPI Master module is verified via a full-duplex exchange against an emulated SPI slave model:
-* **TX (Master -> Slave)**: Transmission of byte `0x3C` (`8'b00111100`) via `mosi`.
-* **RX (Slave -> Master)**: Simultaneous reception of byte `0x89` (`8'b10001001`) via `miso`.
-* Waveform analysis confirms Mode 0 timing: data driven on falling edges and sampled on rising edges of `sck`.
-
-### I2C Master Read Verification
-Verified behavioral simulation targeting an emulated slave at address `7'h50` responding with sensor payload `0xA5`:
-
-| Step / Condition | SCL Cycles | Duration (`CLK_DIV = 10`, 100 MHz Clk) |
-| :--- | :---: | :--- |
-| **START Condition** | 1 | $400\text{ ns}$ |
-| **Slave Address + R/W Bit (`7'h50` + `1'b1`)** | 8 | $3.200\text{ ns}$ |
-| **Slave ACK Evaluation** | 1 | $400\text{ ns}$ |
-| **Data Reception Phase** | 8 | $3.200\text{ ns}$ |
-| **Master NACK Generation** | 1 | $400\text{ ns}$ |
-| **STOP Condition** | 1 | $400\text{ ns}$ |
-| **Total Packet Duration** | **20 Cycles** | **$8.000\text{ ns}\ (8\ \mu\text{s})$** |
-
-* Waveform analysis confirms complete reception of `0xA5` into `rx_data[7:0]` without asserting `ack_error`.
+All peripherals share a standardized **32-bit Memory-Mapped I/O (MMIO)** register structure:
+* `0x00` - **CTRL_REG** : Core execution controls and start triggers.
+* `0x04` - **STATUS_REG**: Operational flags (`busy`, `done`, `rx_valid`).
+* `0x08` - **TX_DATA_REG**: Data payload for transmission.
+* `0x0C` - **RX_DATA_REG**: Captured incoming payload.
 
 ---
 
-## 📊 FPGA Resource Utilization (AMD Xilinx Artix-7)
+## 📊 FPGA Resource Utilization Summary
 
-Target Device: **XC7A35T-FTG256-1** (Synthesized via Vivado v2024.2)
+All synthesis benchmarks target the **AMD Xilinx Artix-7 (XC7A35T-FTG256-1)** FPGA using **Vivado ML v2024.2**.
+
+| Module | Interface | Slice LUTs | Slice Registers (FF) | CARRY4 | BRAM / DSP | Primary Primitives |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **I2C Master** (`i2c_master_rw`) | Standalone | **55** *(0.26%)* | **45** *(0.11%)* | 0 | 0 / 0 | 26 LUT6, 17 LUT3, 40 FDCE, 5 FDPE |
+| **UART Subsystem** (`apb_uart_slave`) | AMBA APB3 | **58** *(0.28%)* | **53** *(0.13%)* | 4 | 0 / 0 | 29 LUT6, 22 LUT5, 51 FDCE, 2 FDPE |
+| **SPI Master** (`apb_spi_slave`) | AMBA APB3 | **34** *(0.16%)* | **46** *(0.11%)* | 0 | 0 / 0 | 14 LUT6, 10 LUT4, 41 FDCE, 5 FDPE |
+
+---
+
+## 🛠 Module Breakdown & Detailed Utilization
 
 ### 1. I2C Master Core (`i2c_master_rw`)
-*Standalone bidirectional I2C controller implementation.*
+* **Features:** Bidirectional single-master controller supporting standard 7-bit addressing, repeated START conditions, and ACK/NACK generation.
+* **Interface:** Standalone native signals (`scl`, `sda_in`, `sda_out`, `sda_oe`).
 
-| Resource Type | Used | Total Available | Utilization (%) | Primary Primitive Breakdown |
+| Resource Type | Used | Total Available | Utilization (%) | Primitive Breakdown |
 | :--- | :---: | :---: | :---: | :--- |
 | **Slice LUTs** | **55** | 20,800 | 0.26% | 26 LUT6, 17 LUT3, 15 LUT5, 13 LUT4 |
-| **Slice Registers (FF)** | **45** | 41,600 | 0.11% | 40 FDCE, 5 FDPE |
-| **Tristate Buffers (OBUFT)** | **1** | - | - | Dedicated I/O tristate buffer for bidirectional `sda` |
+| **Slice Registers** | **45** | 41,600 | 0.11% | 40 FDCE, 5 FDPE |
+| **Tristate Buffers** | **1** | - | - | Dedicated `OBUFT` for bidirectional `sda` line |
 | **BRAM / DSP** | **0** | - | 0.00% | Pure distributed logic |
 
 ---
 
 ### 2. UART APB3 Peripheral (`apb_uart_slave`)
-*Fully integrated UART TX/RX core wrapped with AMBA APB3 bus slave interface.*
+* **Features:** Full-duplex asynchronous communication block with configurable baud rate divisor (`CLKS_PER_BIT`), internal status polling, and APB register interface.
+* **Verification:** Loopback verified (`tx_pin` connected to `rx_pin`).
 
-| Resource Type | Used | Total Available | Utilization (%) | Primary Primitive Breakdown |
+| Resource Type | Used | Total Available | Utilization (%) | Primitive Breakdown |
 | :--- | :---: | :---: | :---: | :--- |
 | **Slice LUTs** | **58** | 20,800 | 0.28% | 29 LUT6, 22 LUT5, 4 LUT4, 4 LUT3, 3 LUT2, 1 LUT1 |
-| **Slice Registers (FF)** | **53** | 41,600 | 0.13% | 51 FDCE, 2 FDPE |
-| **Arithmetic Carry (CARRY4)** | **4** | 8,150 | 0.05% | Hardware adders for baud rate dividers |
+| **Slice Registers** | **53** | 41,600 | 0.13% | 51 FDCE, 2 FDPE |
+| **Arithmetic Carry**| **4** | 8,150 | 0.05% | Hardware adders (`CARRY4`) for baud rate generator |
 | **BRAM / DSP** | **0** | - | 0.00% | Pure distributed logic |
 
-## 📁 Repository Structure
+---
 
-* **`UART/`**: Core Verilog implementation and testbench (`uart_tx.v`, `uart_rx.v`, `tb_uart_tx.v`, `uart_loopback_tb.v`).
-* **`SPI/`**: Core Verilog implementation and testbench (`spi_master.v`, `spi_master_tb.v`).
-* **`I2C/`**: Core Verilog implementation and testbench (`i2c_master.v`,`i2c_master_rw.v`, `i2c_master_tb.v`,`i2c_master_rw_tb.v`).
+### 3. SPI Master APB3 Peripheral (`apb_spi_slave`)
+* **Features:** Synchronous serial master controller supporting configurable SPI clock divider (`CLK_DIV`), active-low chip select (`cs`), and APB3 bus wrapper.
+* **Verification:** Full-duplex loopback verified (`mosi` connected to `miso`).
+
+| Resource Type | Used | Total Available | Utilization (%) | Primitive Breakdown |
+| :--- | :---: | :---: | :---: | :--- |
+| **Slice LUTs** | **34** | 20,800 | 0.16% | 14 LUT6, 10 LUT4, 6 LUT5, 5 LUT2, 3 LUT3, 1 LUT1 |
+| **Slice Registers** | **46** | 41,600 | 0.11% | 41 FDCE, 5 FDPE |
+| **Arithmetic Carry**| **0** | 8,150 | 0.00% | Handled via slice LUT counters |
+| **BRAM / DSP** | **0** | - | 0.00% | Pure distributed logic |
+
+---
+
+## 💻 Simulation & Verification Flow
+
+All testbenches are self-checking and leverage parameterized clock division for rapid RTL execution:
+1. **Behavioral Simulation:** Open Vivado and select the desired testbench as top (`*_tb.v`).
+2. **Execution:** Run simulation for ~1 µs to verify loopback transfer assertions via Tcl Console.
