@@ -133,7 +133,7 @@ All testbenches are self-checking and leverage parameterized clock division for 
 2. **Speed Scaling:** Divide parameters (`CLKS_PER_BIT`, `CLK_DIV`) scale down during behavioral simulation, shrinking multi-millisecond bus waits into sub-microsecond assertion runs without changing RTL state machine logic.
 3. **Subsystem Validation:** System-level verification is handled by `subsystem/tb/apb_subsystem_tb.v`, sequentially exercising all three protocols via APB transactions.
 
-![Simulation Waveform](docs/subsystem_wave.png)
+![Simulation Waveform](SUBSYSTEM/subsystem_wave.png)
 
 ---
 
