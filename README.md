@@ -1,18 +1,60 @@
 # 📡 Serial Communication IP Core Library (UART, SPI, I2C)
 
-A modular, parameterized digital hardware IP library written in Verilog HDL. This repository provides foundational serial communication protocols designed for FPGA implementations, featuring standalone protocol controllers alongside standardized **AMBA APB3** slave wrappers for embedded SoC and processor integration.
+A modular, parameterized digital hardware IP library written in Verilog HDL. This repository provides foundational serial communication protocols designed for FPGA implementations, featuring standalone protocol controllers alongside standardized **APB3** slave wrappers for embedded SoC and processor integration.
 
 ---
 
 ## 📌 Architecture & Integration Layers
 
 Each communication peripheral is structured in a two-layer modular architecture:
+
 1. **Core Controller (Standalone):** Pure protocol engine managing serial timing, state machines, framing, and bit-level transmission.
-2. **Bus Wrapper (AMBA APB3):** Memory-mapped slave interface enabling CPU/SoC register access via a unified 32-bit MMIO structure:
+2. **Bus Wrapper (APB3):** Memory-mapped slave interface enabling CPU/SoC register access via a unified 32-bit MMIO structure:
    * `0x00` - **CTRL_REG** : Core execution triggers and operation configuration.
    * `0x04` - **STATUS_REG**: Operational flags (`busy`, `done_tick`, error states).
    * `0x08` - **TX_DATA_REG**: Outgoing serial payload.
    * `0x0C` - **RX_DATA_REG**: Incoming received byte buffer.
+
+---
+
+## 🎛️ Unified APB3 Subsystem Integration
+
+The repository features a centralized top-level controller (`apb_subsystem.v`) that aggregates all three peripheral IP cores under a single APB3 slave port with an integrated address decoder and return multiplexer.
+
+### Subsystem Architecture
+
+```text
+                           +--------------------+
+                           |    APB3 Master     |
+                           +---------+----------+
+                                     | (paddr, pwdata, pwrite, psel, penable)
+                                     v
+                           +--------------------+
+                           |  Address Decoder   |
+                           |   & Return Mux     |
+                           +----+----+----+-----+
+                                |    |    |
+           +--------------------+    |    +--------------------+
+           |                         |                         |
+           v                         v                         v
+  +------------------+      +------------------+      +------------------+
+  |  APB UART Slave  |      |  APB SPI Master  |      |  APB I2C Master  |
+  +--------+---------+      +--------+---------+      +--------+---------+
+           |                         |                         |
+        uart_tx                   spi_mosi                  i2c_sda
+        uart_rx                   spi_miso                  i2c_scl
+                                  spi_sclk
+```
+
+### System Memory Map
+
+The subsystem decodes address lines (`paddr[11:0]`) to route bus transactions:
+
+| Peripheral | Base Address | Address Range | Register Layout |
+| :--- | :---: | :---: | :--- |
+| **UART Core** | `0x000` | `0x000 - 0x0FF` | `0x00`: CTRL, `0x04`: STATUS, `0x08`: TX_DATA, `0x0C`: RX_DATA |
+| **SPI Master** | `0x100` | `0x100 - 0x1FF` | `0x00`: CTRL, `0x04`: STATUS, `0x08`: TX_DATA, `0x0C`: RX_DATA |
+| **I2C Master** | `0x200` | `0x200 - 0x2FF` | `0x00`: CTRL, `0x04`: STATUS, `0x08`: TX_DATA, `0x0C`: RX_DATA |
 
 ---
 
@@ -22,9 +64,9 @@ Benchmarks synthesized with **AMD Vivado ML v2024.2** targeting the **AMD Xilinx
 
 | Protocol | Top Module | Bus Interface | Slice LUTs | Slice Registers (FF) | CARRY4 | BRAM / DSP |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **UART** | `apb_uart_slave` | AMBA APB3 | **58** *(0.28%)* | **53** *(0.13%)* | 4 | 0 / 0 |
-| **SPI** | `apb_spi_slave` | AMBA APB3 | **34** *(0.16%)* | **46** *(0.11%)* | 0 | 0 / 0 |
-| **I2C** | `apb_i2c_slave` | AMBA APB3 | **72** *(0.35%)* | **64** *(0.15%)* | 0 | 0 / 0 |
+| **UART** | `apb_uart_slave` | APB3 | **58** *(0.28%)* | **53** *(0.13%)* | 4 | 0 / 0 |
+| **SPI** | `apb_spi_slave` | APB3 | **34** *(0.16%)* | **46** *(0.11%)* | 0 | 0 / 0 |
+| **I2C** | `apb_i2c_slave` | APB3 | **72** *(0.35%)* | **64** *(0.15%)* | 0 | 0 / 0 |
 
 ---
 
@@ -86,5 +128,42 @@ Benchmarks synthesized with **AMD Vivado ML v2024.2** targeting the **AMD Xilinx
 ## 🧪 Simulation & Verification Flow
 
 All testbenches are self-checking and leverage parameterized clock division for rapid RTL execution:
+
 1. **Toolchain:** AMD Vivado Simulator (XSim).
 2. **Speed Scaling:** Divide parameters (`CLKS_PER_BIT`, `CLK_DIV`) scale down during behavioral simulation, shrinking multi-millisecond bus waits into sub-microsecond assertion runs without changing RTL state machine logic.
+3. **Subsystem Validation:** System-level verification is handled by `subsystem/tb/apb_subsystem_tb.v`, sequentially exercising all three protocols via APB transactions.
+
+![Simulation Waveform](docs/subsystem_wave.png)
+
+---
+
+## 📁 Repository Organization
+
+```text
+├── uart/
+│   ├── rtl/                    # uart_tx.v, uart_rx.v, apb_uart_slave.v
+│   └── tb/                     # Unit testbenches
+├── spi/
+│   ├── rtl/                    # spi_master.v, apb_spi_slave.v
+│   └── tb/                     # Unit testbenches
+├── i2c/
+│   ├── rtl/                    # i2c_master_rw.v, apb_i2c_slave.v
+│   └── tb/                     # Unit testbenches
+├── subsystem/
+│   ├── rtl/                    # apb_subsystem.v (Top-level decoder & integration)
+│   └── tb/                     # apb_subsystem_tb.v (System verification testbench)
+├── ip_repo/
+│   └── apb_subsystem/          # Packaged Vivado IP-XACT core (component.xml, xgui/)
+├── docs/                       # Waveform screenshots and architecture assets
+├── .gitignore
+└── README.md
+```
+
+---
+
+## 📦 Vivado IP Core Usage
+
+1. In your target Vivado project, navigate to **Project Settings** $\rightarrow$ **IP** $\rightarrow$ **Repository**.
+2. Click **`+`** and select the `ip_repo/apb_subsystem` directory.
+3. Open your **Block Design**, right-click, select **Add IP**, and instantiate `apb_subsystem_v1_0`.
+4. Connect the APB3 slave interface to your processor/DMA master and route external protocol pins to physical I/O constraints.
